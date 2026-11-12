@@ -34,6 +34,6 @@ class Gvisor < Formula
   test do
     assert_match(/runsc version/, shell_output("#{bin}/runsc --version"))
     assert_match(/Subcommands/, shell_output("#{bin}/runsc help"))
-    assert_predicate (bin/"gvisor-bin"), :directory
+    assert File.directory?(bin/"gvisor-bin")
   end
 end
