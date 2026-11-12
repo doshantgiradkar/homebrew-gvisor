@@ -21,6 +21,9 @@ class Gvisor < Formula
   end
 
   def install
+    # Keep gvisor-bin next to runsc; upstream runsc locates it relative to its
+    # executable. Put the upstream files in libexec and expose executable
+    # wrappers in bin so Homebrew audit does not flag the data directory.
     libexec.install "runsc", "containerd-shim-runsc-v1", "gvisor-bin"
 
     %w[runsc containerd-shim-runsc-v1].each do |command|
