@@ -26,10 +26,12 @@ jobs:
         run: |
           set -euo pipefail
           TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-brewvisor"
+          mkdir -p "$(dirname "$TAP_DIR")"
           rm -rf "$TAP_DIR"
           mkdir -p "$TAP_DIR"
           rsync -a --delete ./ "$TAP_DIR/"
           cd "$TAP_DIR"
+          brew trust doshantgiradkar/brewvisor
           brew install --formula ./Formula/gvisor.rb
           brew audit --strict gvisor
 
@@ -44,9 +46,11 @@ jobs:
         run: |
           set -euo pipefail
           TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-brewvisor"
+          mkdir -p "$(dirname "$TAP_DIR")"
           rm -rf "$TAP_DIR"
           mkdir -p "$TAP_DIR"
           rsync -a --delete ./ "$TAP_DIR/"
           cd "$TAP_DIR"
+          brew trust doshantgiradkar/brewvisor
           brew install --formula ./Formula/gvisor.rb
           brew test gvisor
