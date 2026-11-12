@@ -2,14 +2,13 @@
 # frozen_string_literal: true
 
 class Gvisor < Formula
-  desc "gVisor container runtime (unofficial Homebrew packaging of upstream binaries)"
+  desc "Sandboxed container runtime for Linux"
   homepage "https://gvisor.dev/"
   license "Apache-2.0"
 
-  version "20261109.0"
-
   url "https://github.com/google/gvisor/releases/download/release-20261109.0/gvisor-x86_64.tar.bz2"
   sha256 "0846228061b05eb936a96ed2ea205cbd8ddf6936c946f8a390b699cff3b5c138"
+  version "20261109.0"
 
   depends_on :linux
 
@@ -23,17 +22,23 @@ class Gvisor < Formula
   end
 
   def install
-    bin.install "runsc"
-    bin.install "containerd-shim-runsc-v1"
+    # Keep gvisor-bin next to runsc; upstream runsc locates it relative to its
+    # executable. Put the upstream files in libexec and expose executable
+    # wrappers in bin so Homebrew audit does not flag the data directory.
+    libexec.install "runsc", "containerd-shim-runsc-v1", "gvisor-bin"
 
-    # gVisor expects to find gvisor-bin/ next to runsc.
-    libexec.install "gvisor-bin"
-    bin.install_symlink libexec/"gvisor-bin" => "gvisor-bin"
+    %w[runsc containerd-shim-runsc-v1].each do |command|
+      (bin/command).write <<~EOS
+        #!/bin/bash
+        exec "#{libexec}/#{command}" "$@"
+      EOS
+      (bin/command).chmod(0755)
+    end
   end
 
   test do
     assert_match(/runsc version/, shell_output("#{bin}/runsc --version"))
     assert_match(/Subcommands/, shell_output("#{bin}/runsc help"))
-    assert File.directory?(bin/"gvisor-bin")
+    assert_predicate libexec/"gvisor-bin", :directory?
   end
 end
