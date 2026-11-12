@@ -4,11 +4,10 @@
 class Gvisor < Formula
   desc "Sandboxed container runtime for Linux"
   homepage "https://gvisor.dev/"
-  license "Apache-2.0"
-
   url "https://github.com/google/gvisor/releases/download/release-20261109.0/gvisor-x86_64.tar.bz2"
   sha256 "0846228061b05eb936a96ed2ea205cbd8ddf6936c946f8a390b699cff3b5c138"
   version "20261109.0"
+  license "Apache-2.0"
 
   depends_on :linux
 
