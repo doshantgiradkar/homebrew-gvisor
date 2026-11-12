@@ -49,6 +49,10 @@ jobs:
           set -euo pipefail
 
           current_version="$(sed -nE 's/^  version \"([^\"]+)\"$/\1/p' Formula/gvisor.rb)"
+          if [[ -z "$current_version" ]]; then
+            echo "Could not read the current formula version" >&2
+            exit 1
+          fi
           if [[ "$current_version" == "$VERSION" ]]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Formula is already at gVisor $VERSION"
@@ -72,8 +76,7 @@ jobs:
 
           artifact_names = ("gvisor-x86_64.tar.bz2", "gvisor-aarch64.tar.bz2")
           for name in artifact_names:
-              digest = checksums.get(name, "")
-              if not re.fullmatch(r"[0-9a-f]{64}", digest):
+              if not re.fullmatch(r"[0-9a-f]{64}", checksums.get(name, "")):
                   raise SystemExit(f"Missing valid upstream SHA-256 for {name}")
 
           formula = Path("Formula/gvisor.rb")
@@ -82,11 +85,11 @@ jobs:
           version = os.environ["VERSION"]
 
           replacements = [
-              (r'(?m)^(  url "https://github\.com/google/gvisor/releases/download/)release-[^/]+(/gvisor-x86_64\.tar\.bz2")$', rf'\g<1>{tag}\g<2>'),
-              (r'(?m)^(      url "https://github\.com/google/gvisor/releases/download/)release-[^/]+(/gvisor-aarch64\.tar\.bz2")$', rf'\g<1>{tag}\g<2>'),
-              (r'(?m)^  version "[^"]+"$', f'  version "{version}"'),
-              (r'(?m)^  sha256 "[0-9a-fA-F]{64}"$', f'  sha256 "{checksums[artifact_names[0]]}"'),
-              (r'(?m)^      sha256 "[0-9a-fA-F]{64}"$', f'      sha256 "{checksums[artifact_names[1]]}"'),
+              (r'(?m)^(  url \"https://github\\.com/google/gvisor/releases/download/)release-[^/]+(/gvisor-x86_64\\.tar\\.bz2\")$', rf'\g<1>{tag}\g<2>'),
+              (r'(?m)^(      url \"https://github\\.com/google/gvisor/releases/download/)release-[^/]+(/gvisor-aarch64\\.tar\\.bz2\")$', rf'\g<1>{tag}\g<2>'),
+              (r'(?m)^  version \"[^\"]+\"$', f'  version \"{version}"'),
+              (r'(?m)^  sha256 \"[0-9a-fA-F]{64}\"$', f'  sha256 \"{checksums[artifact_names[0]]}"'),
+              (r'(?m)^      sha256 \"[0-9a-fA-F]{64}\"$', f'      sha256 \"{checksums[artifact_names[1]]}"'),
           ]
 
           for pattern, replacement in replacements:
@@ -105,16 +108,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Audit, install, and test updated formula
+      - name: Trust tap, install, audit, and test updated formula
         if: steps.update.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-gvisor"
-          mkdir -p "$(dirname "$TAP_DIR")"
-          rm -rf "$TAP_DIR"
-          mkdir -p "$TAP_DIR"
-          rsync -a --delete ./ "$TAP_DIR/"
-          cd "$TAP_DIR"
           brew trust doshantgiradkar/gvisor
           brew install --formula doshantgiradkar/gvisor/gvisor
           brew audit --strict doshantgiradkar/gvisor/gvisor
@@ -131,4 +128,4 @@ jobs:
           body: |
             Updates the gVisor formula to the latest stable upstream release.
 
-            The version, download URLs, and SHA-256 checksums come from Google's release tag and SHA256SUMS file. The updater runs Homebrew audit, install, and formula tests before opening this PR.
+            The version, download URLs, and SHA-256 checksums come from Google's release tag and SHA256SUMS file. This workflow ran Homebrew install, strict audit, and formula tests before opening the PR.
