@@ -22,8 +22,14 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install formula for audit
+      - name: Install formula from local tap checkout
         run: |
+          set -euo pipefail
+          TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-brewvisor"
+          rm -rf "$TAP_DIR"
+          mkdir -p "$TAP_DIR"
+          rsync -a --delete ./ "$TAP_DIR/"
+          cd "$TAP_DIR"
           brew install --formula ./Formula/gvisor.rb
           brew audit --strict gvisor
 
@@ -34,9 +40,13 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install formula (static)
+      - name: Install formula and run test block
         run: |
+          set -euo pipefail
+          TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-brewvisor"
+          rm -rf "$TAP_DIR"
+          mkdir -p "$TAP_DIR"
+          rsync -a --delete ./ "$TAP_DIR/"
+          cd "$TAP_DIR"
           brew install --formula ./Formula/gvisor.rb
-      - name: Run formula test block
-        run: |
           brew test gvisor
