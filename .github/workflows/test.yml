@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  rubocop:
+  ruby-syntax:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,18 +22,18 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install formula from local tap checkout
+      - name: Install formula from local tap checkout and audit
         run: |
           set -euo pipefail
-          TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-brewvisor"
+          TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-gvisor"
           mkdir -p "$(dirname "$TAP_DIR")"
           rm -rf "$TAP_DIR"
           mkdir -p "$TAP_DIR"
           rsync -a --delete ./ "$TAP_DIR/"
           cd "$TAP_DIR"
-          brew trust doshantgiradkar/brewvisor
-          brew install --formula ./Formula/gvisor.rb
-          brew audit --strict gvisor
+          brew trust doshantgiradkar/gvisor
+          brew install --formula doshantgiradkar/gvisor/gvisor
+          brew audit --strict doshantgiradkar/gvisor/gvisor
 
   formula-test:
     runs-on: ubuntu-latest
@@ -45,12 +45,12 @@ jobs:
       - name: Install formula and run test block
         run: |
           set -euo pipefail
-          TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-brewvisor"
+          TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-gvisor"
           mkdir -p "$(dirname "$TAP_DIR")"
           rm -rf "$TAP_DIR"
           mkdir -p "$TAP_DIR"
           rsync -a --delete ./ "$TAP_DIR/"
           cd "$TAP_DIR"
-          brew trust doshantgiradkar/brewvisor
-          brew install --formula ./Formula/gvisor.rb
-          brew test gvisor
+          brew trust doshantgiradkar/gvisor
+          brew install --formula doshantgiradkar/gvisor/gvisor
+          brew test doshantgiradkar/gvisor/gvisor
