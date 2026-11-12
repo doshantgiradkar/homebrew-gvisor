@@ -1,0 +1,7 @@
+.jj/
+.crush
+*.tar.bz2
+*.tar.zstd
+SHA256SUMS
+SHA512SUMS
+gvisor-*.tar.*

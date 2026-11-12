@@ -1,0 +1,3 @@
+This repository packages official gVisor release binaries.
+
+Upstream licensing and NOTICE requirements are satisfied by the upstream Apache License 2.0 distribution. Please consult the corresponding upstream release artifacts for any additional required notices.

@@ -1,0 +1,42 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rubocop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+      - name: Ruby syntax check
+        run: ruby -c Formula/gvisor.rb
+
+  formula-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Homebrew/actions/setup-homebrew@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install formula for audit
+        run: |
+          brew install --formula ./Formula/gvisor.rb
+          brew audit --strict gvisor
+
+  formula-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Homebrew/actions/setup-homebrew@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install formula (static)
+        run: |
+          brew install --formula ./Formula/gvisor.rb
+      - name: Run formula test block
+        run: |
+          brew test gvisor
