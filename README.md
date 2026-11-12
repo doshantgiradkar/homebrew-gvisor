@@ -9,8 +9,14 @@ This repository is **not** affiliated with Google. It packages official gVisor r
 ## Install
 
 ```bash
-brew tap doshantgiradkar/brewvisor
+brew tap doshantgiradkar/gvisor
 brew install gvisor
+```
+
+Or install directly:
+
+```bash
+brew install doshantgiradkar/gvisor/gvisor
 ```
 
 ## Supported platforms
@@ -20,12 +26,19 @@ brew install gvisor
 
 gVisor requires a Linux kernel with suitable features; Homebrew packages only provide the user-space components.
 
-## Verification
+## Upgrade
 
-After installation:
+The tap checks Google’s stable gVisor releases daily. When a new release is found, automation fetches its official SHA-256 checksums and URLs, validates the updated formula, and opens a pull request. After that PR is merged, upgrade with:
 
 ```bash
-/usr/local/bin/runsc --version
+brew update
+brew upgrade gvisor
+```
+
+## Verification
+
+```bash
+runsc --version
 ```
 
 ## Upstream links
