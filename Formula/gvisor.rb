@@ -9,14 +9,14 @@ class Gvisor < Formula
   version "20261109.0"
 
   url "https://github.com/google/gvisor/releases/download/release-20261109.0/gvisor-x86_64.tar.bz2"
-  sha512 "1a6b8f74c37b4931ef473f67ec1f601690855bedc52ac709f2fac965c69677aa0426ef44598d8eee1aed72cfdb9df87a2a5f352cb3348880fc61a7732bc10f2a"
+  sha256 "REPLACE_WITH_OFFICIAL_X86_64_SHA256"
 
   depends_on :linux
 
   on_linux do
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
       url "https://github.com/google/gvisor/releases/download/release-20261109.0/gvisor-aarch64.tar.bz2"
-      sha512 "411f2d6f7f98a93643725ce9933ff67a7f96f884c2317be3e2b579b976ceb54065bd1d4292a9d61de38da1940ef21b7e41070127874086b7992fb7b5e7a85897"
+      sha256 "REPLACE_WITH_OFFICIAL_AARCH64_SHA256"
     elsif !(Hardware::CPU.intel? && Hardware::CPU.is_64_bit?)
       odie "Unsupported CPU architecture for gVisor release artifacts"
     end
@@ -29,7 +29,6 @@ class Gvisor < Formula
     # gVisor expects to find gvisor-bin/ next to runsc.
     libexec.install "gvisor-bin"
     bin.install_symlink libexec/"gvisor-bin" => "gvisor-bin"
-
   end
 
   test do
