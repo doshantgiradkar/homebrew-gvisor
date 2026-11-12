@@ -2,7 +2,7 @@ name: update-formula
 
 on:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "0 3 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -15,42 +15,120 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch latest stable gVisor release
+      - name: Find latest stable gVisor release
         id: latest
         uses: actions/github-script@v7
         with:
           script: |
             const releases = await github.paginate(github.rest.repos.listReleases, {
-              owner: 'google',
-              repo: 'gvisor',
+              owner: "google",
+              repo: "gvisor",
               per_page: 100,
             });
 
-            const stable = releases.find(r => !r.prerelease && r.tag_name.startsWith('release-'));
-            if (!stable) {
-              core.setFailed('No stable release found');
+            const release = releases.find(r =>
+              !r.draft &&
+              !r.prerelease &&
+              /^release-\d{8}\.\d+$/.test(r.tag_name)
+            );
+
+            if (!release) {
+              core.setFailed("No stable gVisor release found");
               return;
             }
 
-            core.setOutput('tag', stable.tag_name);
-            core.setOutput('version', stable.tag_name.replace('release-', ''));
+            core.setOutput("tag", release.tag_name);
+            core.setOutput("version", release.tag_name.replace(/^release-/, ""));
 
-      - name: Check if formula needs update
-        id: current
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const content = fs.readFileSync('Formula/gvisor.rb', 'utf8');
-            const m = content.match(/version\s+\"([^\"]+)\"/);
-            if (!m) throw new Error('Could not find version in Formula/gvisor.rb');
-            core.setOutput('version', m[1]);
-
-      - name: Download artifacts and prepare PR (implementation placeholder)
-        if: steps.latest.outputs.version != steps.current.outputs.version
+      - name: Update formula version, URLs, and checksums
+        id: update
+        env:
+          RELEASE_TAG: ${{ steps.latest.outputs.tag }}
+          VERSION: ${{ steps.latest.outputs.version }}
         run: |
-          echo "Update automation not implemented in this initial step."
+          set -euo pipefail
 
-      - name: No update
-        if: steps.latest.outputs.version == steps.current.outputs.version
-        run: echo "No update available"
+          current_version="$(sed -nE 's/^  version \"([^\"]+)\"$/\1/p' Formula/gvisor.rb)"
+          if [[ "$current_version" == "$VERSION" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Formula is already at gVisor $VERSION"
+            exit 0
+          fi
+
+          curl --fail --silent --show-error --location \
+            "https://github.com/google/gvisor/releases/download/${RELEASE_TAG}/SHA256SUMS" \
+            --output /tmp/gvisor-SHA256SUMS
+
+          python3 <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          checksums = {}
+          for line in Path("/tmp/gvisor-SHA256SUMS").read_text().splitlines():
+              fields = line.split()
+              if len(fields) >= 2:
+                  checksums[fields[-1].lstrip("*")] = fields[0].lower()
+
+          artifact_names = ("gvisor-x86_64.tar.bz2", "gvisor-aarch64.tar.bz2")
+          for name in artifact_names:
+              digest = checksums.get(name, "")
+              if not re.fullmatch(r"[0-9a-f]{64}", digest):
+                  raise SystemExit(f"Missing valid upstream SHA-256 for {name}")
+
+          formula = Path("Formula/gvisor.rb")
+          text = formula.read_text()
+          tag = os.environ["RELEASE_TAG"]
+          version = os.environ["VERSION"]
+
+          replacements = [
+              (r'(?m)^(  url "https://github\.com/google/gvisor/releases/download/)release-[^/]+(/gvisor-x86_64\.tar\.bz2")$', rf'\g<1>{tag}\g<2>'),
+              (r'(?m)^(      url "https://github\.com/google/gvisor/releases/download/)release-[^/]+(/gvisor-aarch64\.tar\.bz2")$', rf'\g<1>{tag}\g<2>'),
+              (r'(?m)^  version "[^"]+"$', f'  version "{version}"'),
+              (r'(?m)^  sha256 "[0-9a-fA-F]{64}"$', f'  sha256 "{checksums[artifact_names[0]]}"'),
+              (r'(?m)^      sha256 "[0-9a-fA-F]{64}"$', f'      sha256 "{checksums[artifact_names[1]]}"'),
+          ]
+
+          for pattern, replacement in replacements:
+              text, count = re.subn(pattern, replacement, text, count=1)
+              if count != 1:
+                  raise SystemExit(f"Formula structure did not match expected pattern: {pattern}")
+
+          formula.write_text(text)
+          PY
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Homebrew
+        if: steps.update.outputs.changed == 'true'
+        uses: Homebrew/actions/setup-homebrew@1f8e202ffddf94def7f42f6fa3a482e821489f9c
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Audit, install, and test updated formula
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          TAP_DIR="$(brew --prefix)/Homebrew/Library/Taps/doshantgiradkar/homebrew-gvisor"
+          mkdir -p "$(dirname "$TAP_DIR")"
+          rm -rf "$TAP_DIR"
+          mkdir -p "$TAP_DIR"
+          rsync -a --delete ./ "$TAP_DIR/"
+          cd "$TAP_DIR"
+          brew trust doshantgiradkar/gvisor
+          brew install --formula doshantgiradkar/gvisor/gvisor
+          brew audit --strict doshantgiradkar/gvisor/gvisor
+          brew test doshantgiradkar/gvisor/gvisor
+
+      - name: Create or update formula PR
+        if: steps.update.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/update-gvisor-formula
+          delete-branch: true
+          commit-message: "Update gVisor to ${{ steps.latest.outputs.version }}"
+          title: "Update gVisor to ${{ steps.latest.outputs.version }}"
+          body: |
+            Updates the gVisor formula to the latest stable upstream release.
+
+            The version, download URLs, and SHA-256 checksums come from Google's release tag and SHA256SUMS file. The updater runs Homebrew audit, install, and formula tests before opening this PR.
